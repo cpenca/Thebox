@@ -587,63 +587,56 @@
      * Form submit -> POST to Apps Script
      ***************/
     form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+  e.preventDefault();
 
-      if (!WEB_APP_URL || WEB_APP_URL.includes("PASTE_YOUR")) {
-        setStatus('err', 'Missing WEB_APP_URL. Paste your Google Apps Script Web App URL into the code.');
-        return;
-      }
+  if (!WEB_APP_URL || WEB_APP_URL.includes("PASTE_YOUR")) {
+    setStatus('err', 'Missing WEB_APP_URL. Paste your Google Apps Script Web App URL into the code.');
+    return;
+  }
 
-      const formData = new FormData(form);
-      const payload = {
-        name: formData.get('name')?.toString().trim(),
-        email: formData.get('email')?.toString().trim(),
-        phone: formData.get('phone')?.toString().trim(),
-        songTitle: formData.get('songTitle')?.toString().trim(),
-        artist: formData.get('artist')?.toString().trim(),
-        source: "website modal",
-        userAgent: navigator.userAgent
-      };
+  const formData = new FormData(form);
+  const payload = {
+    name: (formData.get('name') || '').toString().trim(),
+    email: (formData.get('email') || '').toString().trim(),
+    phone: (formData.get('phone') || '').toString().trim(),
+    songTitle: (formData.get('songTitle') || '').toString().trim(),
+    artist: (formData.get('artist') || '').toString().trim(),
+    source: "website modal",
+    userAgent: navigator.userAgent
+  };
 
-      // basic client-side validation
-      for (const k of ["name","email","phone","songTitle","artist"]) {
-        if (!payload[k]) {
-          setStatus('err', 'Please fill out all fields.');
-          return;
-        }
-      }
+  for (const k of ["name","email","phone","songTitle","artist"]) {
+    if (!payload[k]) {
+      setStatus('err', 'Please fill out all fields.');
+      return;
+    }
+  }
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Submitting…";
-      setStatus('', '');
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Submitting…";
+  setStatus('', '');
 
-      try {
-        const res = await fetch(WEB_APP_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(payload)
-        });
+  try {
+    // no-cors prevents the browser from blocking the request due to missing CORS headers.
+    // You won't be able to read the response, so treat success as "sent".
+    await fetch(WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
 
-        // Apps Script often returns 200 even on errors; rely on JSON payload
-        const text = await res.text();
-        let data;
-        try { data = JSON.parse(text); } catch { data = { ok:false, error: text || "Unknown response" }; }
+    setStatus('ok', "✅ Submitted. You’re in.");
+    form.reset();
+    setTimeout(closeModal, 900);
 
-        if (data.ok) {
-          setStatus('ok', "✅ Submitted. You’re in.");
-          form.reset();
-          // close after a beat
-          setTimeout(closeModal, 900);
-        } else {
-          setStatus('err', "❌ " + (data.error || "Submission failed."));
-        }
-
-      } catch (err) {
-        setStatus('err', "❌ Network error. Try again.");
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit";
-      }
+  } catch (err) {
+    setStatus('err', "❌ Still blocked. Double-check your Web App URL ends with /exec and is deployed to Anyone.");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit";
+  }
+});
     });
 
     // Footer year
